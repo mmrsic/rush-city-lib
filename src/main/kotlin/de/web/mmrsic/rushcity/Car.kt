@@ -7,10 +7,10 @@ import kotlin.math.min
  * A car is able to drive from a start street to a target street where the adjoining parking lots are used
  * to "slide" onto and off the city map.
  */
-class Car(val start: CityMap.Street, val target: CityMap.Street) : TimeAware, Positionable {
-    internal val path = CarPath(start.shortestLanePath(target))
-    val front = FrontPart(path.lanePath.lanes[0])
-    val rear = RearPart(path.path[0])
+class Car(private val start: CityMap.Street, private val target: CityMap.Street) : TimeAware, Positionable {
+    private val path = CarPath(start.shortestLanePath(target))
+    private val front = FrontPart(path.lanePath.lanes[0])
+    private val rear = RearPart(path.path[0])
     var coveredDistance = 0.0
 
     override fun x() = rear.x() + when (rear.directionTo(front)) {
@@ -23,6 +23,18 @@ class Car(val start: CityMap.Street, val target: CityMap.Street) : TimeAware, Po
         Direction.NORTHBOUND -> -distanceOffset()
         Direction.SOUTHBOUND -> distanceOffset()
         else -> 0.0
+    }
+
+    /** Current direction this car is heading. */
+    fun direction() = rear.directionTo(front)
+
+    /** All directions that are blocked by this car for other cars. */
+    fun blockingDirections(): Collection<Direction> {
+        val result = Direction.values().toMutableList()
+        if (front.carBlockable !== rear.carBlockable) {
+            result.remove(direction())
+        }
+        return result
     }
 
     private fun distanceOffset() = coveredDistance.rem(1)
@@ -51,8 +63,8 @@ class Car(val start: CityMap.Street, val target: CityMap.Street) : TimeAware, Po
             if (newFrontLane == null) {
                 return
             }
-            val currDirection = rear.directionTo(newFrontLane)
-            if (newFrontLane.isBlocked() && newFrontLane.directions().contains(currDirection)) {
+            val newDirection = newRearLane.directionTo(newFrontLane)
+            if (newFrontLane.isBlocked() && newFrontLane.blockedDirections().contains(newDirection)) {
                 return
             }
             front.advanceTo(newFrontLane)
@@ -63,16 +75,16 @@ class Car(val start: CityMap.Street, val target: CityMap.Street) : TimeAware, Po
     /**
      * A car part.
      */
-    abstract class Part(var streetBlock: CarBlockable) : Positionable {
-        override fun x() = streetBlock.x()
-        override fun y() = streetBlock.y()
+    abstract class Part(var carBlockable: CarBlockable) : Positionable {
+        override fun x() = carBlockable.x()
+        override fun y() = carBlockable.y()
         open fun advanceTo(next: CarBlockable) {
-            streetBlock = next
+            carBlockable = next
         }
     }
 
     /**
-     * The front car part.
+     * The front part of a car.
      */
     inner class FrontPart(streetBlock: CarUsable) : Part(streetBlock) {
 
@@ -81,11 +93,11 @@ class Car(val start: CityMap.Street, val target: CityMap.Street) : TimeAware, Po
         }
 
         override fun toString(): String {
-            return "${x()}/${y()} Front->$streetBlock"
+            return "${x()}/${y()} Front->$carBlockable"
         }
 
         override fun advanceTo(next: CarBlockable) {
-            val sb = streetBlock
+            val sb = carBlockable
             if (sb as? CarUsable != null) {
                 sb.removeEnteringCar(this@Car)
             }
@@ -97,7 +109,7 @@ class Car(val start: CityMap.Street, val target: CityMap.Street) : TimeAware, Po
     }
 
     /**
-     * The rear car part.
+     * The rear part of a car.
      */
     inner class RearPart(streetBlock: CarBlockable) : Part(streetBlock) {
 
@@ -106,11 +118,11 @@ class Car(val start: CityMap.Street, val target: CityMap.Street) : TimeAware, Po
         }
 
         override fun toString(): String {
-            return "${x()}/${y()} Rear->$streetBlock"
+            return "${x()}/${y()} Rear->$carBlockable"
         }
 
         override fun advanceTo(next: CarBlockable) {
-            streetBlock.blockingCar = null
+            carBlockable.blockingCar = null
             next.blockingCar = this@Car
             super.advanceTo(next)
         }
@@ -118,7 +130,7 @@ class Car(val start: CityMap.Street, val target: CityMap.Street) : TimeAware, Po
 }
 
 /**
- * An instance blockable by a single car for all other cars.
+ * An instance blockable by a single car for all other cars using any of its blocked directions.
  */
 interface CarBlockable : Positionable {
     /**
@@ -134,7 +146,7 @@ interface CarBlockable : Positionable {
     /**
      * All directions of a car this instance is blocking.
      */
-    fun directions(): Collection<Direction>
+    fun blockedDirections(): Collection<Direction>
 
 }
 

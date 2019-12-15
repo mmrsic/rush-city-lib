@@ -172,7 +172,7 @@ class CityMap(val numRows: Int, val numCols: Int) {
 
             val start = object : CarBlockable {
                 override var blockingCar: Car? = null
-                override fun directions(): Collection<Direction> = listOf(street.border()!!.direction)
+                override fun blockedDirections(): Collection<Direction> = listOf(street.border()!!.direction)
                 override fun x() = street.x() + when (street.border()!!.direction) {
                     Direction.EASTBOUND -> 2.0
                     Direction.WESTBOUND -> -1.0
@@ -194,7 +194,7 @@ class CityMap(val numRows: Int, val numCols: Int) {
                 override fun toString() = "ParkingLotTarget ${isBlocked()}"
                 override var blockingCar: Car? = null
                 override fun isBlocked() = false
-                override fun directions(): Collection<Direction> = listOf(street.border()!!.direction)
+                override fun blockedDirections(): Collection<Direction> = listOf(street.border()!!.direction)
                 override fun x() = street.x() + when (street.border()!!.direction) {
                     Direction.EASTBOUND -> 2.0
                     Direction.WESTBOUND -> -1.0
@@ -285,7 +285,14 @@ class CityMap(val numRows: Int, val numCols: Int) {
             override fun toString(): String =
                 "$enteringDirection [${trafficLight?.color}][${isBlocked()}] Lane@$street (${x()}, ${y()})"
 
-            override fun directions() = listOf(enteringDirection)
+            override fun blockedDirections(): List<Direction> {
+                val trafficLightDirs = listOf(enteringDirection)
+                when (val blCar = blockingCar) {
+                    null -> return trafficLightDirs
+                    else -> return trafficLightDirs + blCar.blockingDirections()
+                }
+
+            }
 
             override fun x(): Double {
                 return street.x() + when (enteringDirection) {
@@ -317,7 +324,11 @@ class CityMap(val numRows: Int, val numCols: Int) {
                 enteringCars.remove(car)
             }
 
-            override fun isBlocked() = super.isBlocked() || (trafficLight != null && trafficLight!!.isRed())
+            override fun isBlocked(): Boolean {
+                return super.isBlocked()
+                        || trafficLight != null && trafficLight!!.isRed()
+                        || blockingCar != null
+            }
 
         }
     }
