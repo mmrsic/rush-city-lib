@@ -20,14 +20,36 @@ class CityMap(val numRows: Int, val numCols: Int) {
 
     /**
      * Print a representation of this map to a given PrintStream.
+     * An 'X' represents a street
+     * Values ranging from 1 to f are hexadecimals representing the red lights of a crossing where
+     * value 1 represents southbound driving direction
+     * value 2 represents eastbound driving direction
+     * value 4 represents northbound driving direction
+     * value 8 represents westbound driving direction
      */
     fun print(out: PrintStream) {
         out.append("Map ").print(numCols)
         out.append("x").println(numRows)
         for (rowIdx in 0 until numRows) {
             for (colIdx in 0 until numCols) {
-                if (isStreet(Coordinate(Row(rowIdx), Column(colIdx)))) {
-                    out.append('X')
+                val coordinate = Coordinate(Row(rowIdx), Column(colIdx))
+                if (isStreet(coordinate)) {
+                    val redLightsCode = streetAt(coordinate)!!.lanes.values
+                        .filter { lane -> lane.trafficLight?.isRed() == true }
+                        .map { lane ->
+                            when (lane.enteringDirection) {
+                                Direction.SOUTHBOUND -> 1
+                                Direction.EASTBOUND -> 2
+                                Direction.NORTHBOUND -> 4
+                                Direction.WESTBOUND -> 8
+                            }
+                        }
+                        .fold(0) { code1, code2 -> code1 + code2 }
+                    if (redLightsCode > 0) {
+                        out.append(redLightsCode.toString(16))
+                    } else {
+                        out.append('X')
+                    }
                 } else {
                     out.append(' ')
                 }
@@ -38,18 +60,35 @@ class CityMap(val numRows: Int, val numCols: Int) {
 
     fun streets(): Collection<Street> = streets.values
 
-    /**
-     * Check whether there is a street for a given coordinate.
-     */
+    /** Check whether there is a street for a given coordinate. */
     fun isStreet(coordinate: Coordinate): Boolean = streets[coordinate] != null
 
+    /** The street at a given row/column pair if present. */
     fun streetAt(row: Int, column: Int): Street? = streetAt(Coordinate(Row(row), Column(column)))
+
+    /** The street at a given Coordinate if present. */
     fun streetAt(coordinate: Coordinate): Street? = streets[coordinate]
+
+    /** All the neighbors of a given street of this map. */
     fun neighbors(street: Street): Collection<Street> = street.neighbors()
+
+    /** All the traffic lights of this map. */
+    fun trafficLights(): Collection<TrafficLight> {
+        val result: MutableList<TrafficLight> = mutableListOf()
+        for (street in streets()) {
+            result.addAll(street.trafficLights().values)
+        }
+        return result
+    }
 
     /** Add traffic lights to all streets that represent cross roads. */
     fun createDefaultTrafficLights(color: TrafficLight.LightColor) =
         streets().forEach { street -> createDefaultTrafficLights(street, color) }
+
+    /** Set all the traffic lights of this map to a given traffic light color. */
+    fun setAllTrafficLightColors(color: TrafficLight.LightColor) {
+        trafficLights().forEach { trafficLight: TrafficLight -> trafficLight.color = color }
+    }
 
     /** Add traffic lights to all incoming streets of a given street. */
     private fun createDefaultTrafficLights(street: Street, color: TrafficLight.LightColor) {
@@ -201,6 +240,11 @@ class CityMap(val numRows: Int, val numCols: Int) {
 
         override fun y(): Double {
             return coordinate.row.index * 2.0
+        }
+
+        /** All the traffic lights of this street if any. */
+        fun trafficLights(): Map<Direction, TrafficLight> {
+            return lanes.filter { lane -> lane.value.trafficLight != null }.mapValues { it.value.trafficLight!! }
         }
 
         fun neighbors(): Collection<Street> {

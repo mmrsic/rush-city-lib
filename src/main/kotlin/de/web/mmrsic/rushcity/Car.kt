@@ -27,6 +27,7 @@ class Car(val start: CityMap.Street, val target: CityMap.Street) : TimeAware, Po
 
     private fun distanceOffset() = coveredDistance.rem(1)
 
+    /** Check wether this car has reached its target on the city map. */
     fun isAtTarget(): Boolean = coveredDistance >= path.length()
 
     override fun toString(): String = "Car#${hashCode()} " +

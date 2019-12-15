@@ -20,6 +20,7 @@ class DefaultCityMapCreatorTest {
         val numCols = 20
         val numRows = 15
         val createdMap = unitUnderTest.create(numRows, numCols)
+        createdMap.setAllTrafficLightColors(CityMap.TrafficLight.LightColor.GREEN)
         assertEquals(numRows, createdMap.numRows, "Number of map rows")
         assertEquals(numCols, createdMap.numCols, "Number of map columns")
         for (dir in enumValues<Direction>()) {

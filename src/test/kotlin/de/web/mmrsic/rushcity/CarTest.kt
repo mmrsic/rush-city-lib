@@ -16,6 +16,7 @@ class CarTest {
     fun testCreate12x8AndDriveCar() {
         val mapCreator = DefaultCityMapCreator()
         val createdMap = mapCreator.create(8, 12)
+        createdMap.setAllTrafficLightColors(CityMap.TrafficLight.LightColor.GREEN)
         createdMap.print(System.out)
 
         val start = createdMap.streetAt(1, 0)!!
@@ -45,8 +46,8 @@ class CarTest {
     @Test
     fun testMultipleCarsAndTrafficLightQueue() {
         val map = DefaultCityMapCreator().create(15, 15)
-        map.print(System.out)
         map.createDefaultTrafficLights(CityMap.TrafficLight.LightColor.GREEN)
+        map.print(System.out)
 
         val start = map.streetAt(2, 14)!!
         val target = map.streetAt(14, 12)!!
@@ -61,7 +62,7 @@ class CarTest {
         val redLightLane = redLightStreet.lanes[Direction.SOUTHBOUND]!!
         val redTrafficLight = redLightLane.trafficLight!!
         redTrafficLight.setRed()
-        println("Red light lane: $redLightLane")
+        map.print(System.out)
 
         println("Fill traffic light waiting queue northbound")
         for (carNo in 1..10) {
@@ -91,6 +92,7 @@ class CarTest {
     @Test
     fun testMiniSteps() {
         val map = DefaultCityMapCreator().create(3, 3)
+        map.setAllTrafficLightColors(CityMap.TrafficLight.LightColor.GREEN)
         map.print(System.out)
 
         val start = map.streetAt(0, 1)!!
